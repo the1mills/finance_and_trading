@@ -54,7 +54,7 @@ public class DB4oConnect {
 
 	}
 
-	public void insertIntoDatabase(Class className, Object o) {
+	public void insertIntoDatabase(Object o) {
 
 		db.store(o);
 	}
@@ -89,11 +89,19 @@ public class DB4oConnect {
 			}
 		
 	}
+	
+	
+	public void openJTableWithObject(Object o) {
+		Class<?> c = o.getClass();
+		openJTableWithClass(c);
+	}
+	
 
-	public void openTable(Object o) {
+	public void openJTableWithClass(Class c) {
 		
 		
-				Field[] columnFields = o.getClass().getDeclaredFields();
+				//Field[] columnFields = o.getClass().getDeclaredFields();
+				Field[] columnFields = c.getDeclaredFields();
 				String[] columnNames = new String[columnFields.length];
 				
 				for(int i = 0; i < columnNames.length; i++){
@@ -113,7 +121,7 @@ public class DB4oConnect {
 				   Query q = db.query();
 				    
 			        // Constrain query
-			        q.constrain(o.getClass());
+			        q.constrain(c);
 			        
 			        // Descend to battingAverage field and constrain value to be > 0.3
 			     //   q.descend("profit").constrain(new Float(7000f)).greater();

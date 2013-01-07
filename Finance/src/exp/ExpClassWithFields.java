@@ -3,7 +3,7 @@ package exp;
 import java.awt.Color;
 import java.util.Date;
 
-import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JPanel;
 
 public class ExpClassWithFields {
@@ -14,7 +14,8 @@ public class ExpClassWithFields {
 	private Integer bonafide = null;
 	private String xxx = null;
 	private Date dateField = null;
-	private JPanel jcb = null;
+	private JPanel jcp = null;
+	private JComboBox jcb = null;
 
 	public ExpClassWithFields(Integer markee, Integer simpson, Double realle,
 			Integer bonafide) {
@@ -23,19 +24,33 @@ public class ExpClassWithFields {
 		this.simpson = simpson;
 		this.realle = realle;
 		this.bonafide = bonafide;
-		this.xxx = "love the glove";
+		this.xxx = "u the glove eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee1";
 		this.dateField = new Date();
-		this.jcb = new JPanel();
-		this.jcb.setBackground(Color.pink);
+		this.jcp = new JPanel();
+		this.jcp.setBackground(Color.pink);
+		this.jcb = new JComboBox();
 	}
 	
-	
+	public JPanel getJcp() {
+		return jcp;
+	}
+
+
+	public void setJcp(JPanel jcp) {
+		this.jcp = jcp;
+	}
+
+
+	public void setJcb(JComboBox jcb) {
+		this.jcb = jcb;
+	}
+
 	public JPanel getJcb() {
-		return jcb;
+		return jcp;
 	}
 
 	public void setJcb(JPanel jcb) {
-		this.jcb = jcb;
+		this.jcp = jcb;
 	}
 	public Date getDateField() {
 		return dateField;

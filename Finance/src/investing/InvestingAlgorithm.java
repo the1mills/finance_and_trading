@@ -376,7 +376,7 @@ public class InvestingAlgorithm {
 																	pValue1Low,
 																	pValue1High);
 															
-															db4oCo.insertIntoDatabase(ir.getClass(), ir);
+															db4oCo.insertIntoDatabase(ir);
 
 															WriteToTextFile
 																	.writeToTextFile("Profit: "
@@ -433,7 +433,8 @@ public class InvestingAlgorithm {
 		// RefineryUtilities.centerFrameOnScreen(fc1);
 		// fc1.setVisible(true);
 		InvestmentResult ir = new InvestmentResult(30.0, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-		db4oCo.openTable(ir);
+		db4oCo.openJTableWithObject(ir);
+		db4oCo.openJTableWithClass(InvestmentResult.class);
 		WriteToTextFile.closeFile();
 	}
 

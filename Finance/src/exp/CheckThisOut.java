@@ -1,5 +1,7 @@
 package exp;
 
+import javax.swing.JPanel;
+
 import com.db4o.Db4oEmbedded;
 import com.db4o.ObjectContainer;
 import com.db4o.ObjectSet;
@@ -14,8 +16,9 @@ public class CheckThisOut {
 		DB4oConnect db4oc = new DB4oConnect();
 
 		for (int i = 0; i < 9; i++) {
-			ExpClassWithFields ecwf = new ExpClassWithFields(3, 4, i * 2.0, 3);
-			db4oc.insertIntoDatabase(ecwf.getClass(), ecwf);
+			ExpClassWithFields ecwf = new ExpClassWithFields(3, 4, i * 2.0, 6);
+			//JPanel jp = ecwf.getJcb();
+			db4oc.insertIntoDatabase(ecwf);
 		}
 		db4oc.getDb().commit();
 		ExpClassWithFields ecwf = new ExpClassWithFields(null, null, null, null);
@@ -25,7 +28,8 @@ public class CheckThisOut {
 		// db4oc.deleteFromDatabase(ecwf.getClass(),ecwf);
 	//	db4oc.getDb().commit();
 
-		db4oc.openTable(ecwf);
+		db4oc.openJTableWithObject(ecwf);
+	//	db4oc.openJTableWithClass(ExpClassWithFields.class);
 	}
 
 	public static void main(String[] args) {
@@ -44,8 +48,6 @@ public class CheckThisOut {
 		if (db == null) {
 			db = Db4oEmbedded.openFile(filename);
 		}
-
-		String stinkg = new String("yes");
 
 		Query q = db.query();
 
