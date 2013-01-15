@@ -116,6 +116,8 @@ public class EReader extends Thread {
                         eWrapper().tickSize( tickerId, sizeTickType, size);
                     }
                 }
+                
+               // System.out.println("TICK PRICE: " + tickerId + tickType + size);
                 break;
             }
             case TICK_SIZE: {
@@ -125,7 +127,7 @@ public class EReader extends Thread {
                 int size = readInt();
 
                 eWrapper().tickSize( tickerId, tickType, size);
-                System.out.println("TICK SIZE: " + tickerId + tickType + size);
+       //         System.out.println("TICK SIZE: " + tickerId + tickType + size);
                 break;
             }
 
@@ -187,7 +189,7 @@ public class EReader extends Thread {
                 double value = readDouble();
 
                 eWrapper().tickGeneric( tickerId, tickType, value);
-                System.out.println("TICK_GENERIC:  " + tickerId + tickType + value);
+        //        System.out.println("TICK_GENERIC:  " + tickerId + tickType + value);
                 break;
             }
 
@@ -198,7 +200,7 @@ public class EReader extends Thread {
                 String value = readStr();
 
                 eWrapper().tickString( tickerId, tickType, value);
-                System.out.println("TICK_STRING:  " + tickerId + tickType + value);
+         //       System.out.println("TICK_STRING:  " + tickerId + tickType + value);
                 break;
             }
 
@@ -258,9 +260,9 @@ public class EReader extends Thread {
                 eWrapper().orderStatus( id, status, filled, remaining, avgFillPrice,
                                 permId, parentId, lastFillPrice, clientId, whyHeld);
                 
-                System.out.println("id: " + id + " status: " + status + " filled: " + filled
-                		+ " remaining: " + remaining + " average fill price: " + avgFillPrice
-                		+ " permId: " + permId + " parentId: " + parentId);
+//                System.out.println("id: " + id + " status: " + status + " filled: " + filled
+//                		+ " remaining: " + remaining + " average fill price: " + avgFillPrice
+//                		+ " permId: " + permId + " parentId: " + parentId);
                 break;
             }
 

@@ -518,6 +518,7 @@ public class EClientSocket {
             }
         }
         catch( Exception e) {
+        	System.out.println("Errorr!!");
             error( tickerId, EClientErrors.FAIL_SEND_REQMKT, "" + e);
             close();
         }

@@ -1,12 +1,33 @@
 package engine;
 
+
+/*Specifies the type of price. Pass the field value into TickType.getField(int tickType) to retrieve the field description.  For example, a field value of 1 will map to bidPrice, a field value of 2 will map to askPrice, etc.
+
+·          1 = bid
+
+·          2 = ask
+
+·          4 = last
+
+·          6 = high
+
+·          7 = low
+
+·          9 = close*/
+
+
 import gui.MainFrame;
+
+import java.util.Vector;
+
 import clientConnection.Contract;
 import clientConnection.Order;
 import clientConnection.UnderComp;
 
 public class TradingEngine {
 
+	
+	public Vector<Double> prices = new Vector<Double>();
 	private String m_faGroup;
 	private String m_faProfile;
 	private String m_faMethod;
@@ -42,11 +63,14 @@ public class TradingEngine {
 	public TradingEngine(MainFrame mf, int m_id, Contract m_contract,
     		 String m_genericTicks, boolean m_snapshotMktData) {
 		
+		System.out.println("new trading engine");
 		this.m_id = m_id;
 		this.m_contract = m_contract;
 		this.m_genericTicks = m_genericTicks;
 		this.m_snapshotMktData = m_snapshotMktData;
 		this.mf = mf;
+		
+		
 		
 //	 	mf.m_client.reqMktData(m_id, m_contract,
 //        		m_genericTicks, m_snapshotMktData);
@@ -55,12 +79,14 @@ public class TradingEngine {
 	 	
 	 	Order order = new Order();
 	 	
-	 	order.m_minQty= 50;
-	 	order.m_orderId = 10;
+	// 	order.m_minQty= 50;
+	 	order.m_orderId = 65;
 	 	order.m_clientId = 0;
 	 	order.m_orderType ="MKT";
-	 	order.m_totalQuantity = 100;
+	 	order.m_totalQuantity = 70;
 	 	order.m_action = "BUY";
+	 	order.m_allOrNone = false;	
+
 	 	
 	 	Contract contract = new Contract();
 	 	
@@ -69,29 +95,27 @@ public class TradingEngine {
 	 	contract.m_symbol = "GOOG";
 	 	contract.m_secType = "STK";
 	
-	//	mf.m_client.placeOrder(order.m_orderId, contract, order);
-		mf.m_client.reqMktData(100, contract,
-        		"es", true);
-		
-	 	try {
-	//		mf.m_client.placeOrder(order.m_orderId, contract, order);
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+		mf.m_client.placeOrder(order.m_orderId, contract, order);
 	 	
-	 	
-//	 	mf.m_client.
-	 	
-	 	
-	 	
-	 	try {
-			Thread.sleep(1000);
+//	 	for(int i = 0; i < 1000; i++){
+//		mf.m_client.reqMktData(103, contract,
+//        		"", true);
+		try {
+			Thread.sleep(20000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+//	 	}
 	 	
+		
+	 	try {
+//			mf.m_client.placeOrder(order.m_orderId, contract, order);
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	
 //	 	mf.orderStatus(orderId, status, filled, remaining, avgFillPrice, permId, parentId, 
 //	 			lastFillPrice, clientId, whyHeld);
 	 	
@@ -99,6 +123,18 @@ public class TradingEngine {
 	 	
 	}
 	
+	
+
+	
+	public Vector<Double> getPrices() {
+		return prices;
+	}
+
+
+	public void setPrices(Vector<Double> prices) {
+		this.prices = prices;
+	}
+
 	
 
 
