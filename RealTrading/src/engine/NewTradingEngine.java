@@ -1,0 +1,645 @@
+package engine;
+
+import gui.MainFrame;
+
+import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Date;
+import java.util.Vector;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
+
+import trading.Purchase;
+import trading.Sale;
+import visual.FreeChart;
+import clientConnection.Contract;
+import clientConnection.Order;
+
+public class NewTradingEngine {
+
+	public Contract contract = null;
+	public int tickerId = 34;
+	public int purchaseId = 0;
+	public int saleId = 0;
+	public boolean buy = true;
+	public boolean sell = false;
+	public Vector<Double> prices = new Vector<Double>();
+	public Vector<String> pricesString = null;
+	public Double mostRecentPurchasePrice = null;
+	public static Double movingAverage = null;
+	public Vector<Purchase> purchases = new Vector<Purchase>();
+	public Vector<Sale> sales = new Vector<Sale>();
+	public Double currentPrice = null;
+	public Double currentPriceBid = null;
+	public Double currentPriceAsk = null;
+	public static Vector<Double[]> currentPriceArray = new Vector<Double[]>();
+	public FreeChart fc1 = null;
+	public Double[] sellPrice = { .03 };
+	public Double[] buyPriceUnderLow = { -.02 };
+	public Double[] buyPriceUnderHigh = { .02 };
+	public Double[] buyPriceOver = { .9 };
+	public Double[] stopLossPrice = { .03 };
+	public Integer[] movingAverageValues = { 450 };
+	private MainFrame m_f = null;
+	public boolean keepLooping = true;
+	public boolean isPaused = true;
+	private JButton closeOutButton = new JButton("Close Out");
+	private JButton pauseButton = new JButton("Pause");
+	public boolean newMarketDataReceived = false;
+	private Double ma = null;
+//	private Double totalCost = 0.0;
+	private Double totalTradingCost = 0.0;
+	private int numberOfPurchases = 0;
+	public Integer numberOfStopLoss = 0;
+	public Integer numberOfProfitableSales = 0;
+	public Order buyOrder = new Order();
+	public Order sellOrder = new Order();
+	public Order stopLossOrder = new Order();
+	public boolean buyOrderCompleted = false;
+	private boolean bothSellOrdersCompleted = false;
+
+	public NewTradingEngine(MainFrame mainFrame) {
+
+		this.m_f = mainFrame;
+		contract = new Contract();
+		
+		buyOrder.m_orderId = 1;
+		sellOrder.m_orderId = 1;
+		stopLossOrder.m_orderId = 1;
+
+		// startThisSucker();
+		closeOutButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				onCloseOut();
+
+			}
+
+			private void onCloseOut() {
+
+				System.out.println("Close out position(s)...");
+				keepLooping = false;
+			}
+
+		});
+
+		pauseButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+
+				if (isPaused == false) {
+					isPaused = true;
+					pauseButton.setForeground(Color.red);
+					pauseButton.setText("Resume");
+				} else {
+					isPaused = false;
+					pauseButton.setForeground(Color.black);
+					pauseButton.setText("Pause");
+				}
+
+			}
+
+		});
+
+	}
+
+	private void createAndShowGUI() {
+		JFrame frame = new JFrame();
+		JPanel panel = new JPanel();
+		frame.add(panel);
+		panel.add(closeOutButton);
+		panel.add(pauseButton);
+		closeOutButton.setEnabled(true);
+		pauseButton.setEnabled(true);
+		frame.pack();
+		frame.setVisible(true);
+
+	}
+
+	// public static void main(String[] args){
+	// new NewTradingEngine();
+	// }
+
+	public void startThisSucker() {
+
+		buyOrder.m_orderId = 2044;
+		buyOrder.m_clientId = 3;
+		buyOrder.m_orderType = "MKT";
+		buyOrder.m_totalQuantity = 100;
+		buyOrder.m_action = "BUY";
+		buyOrder.m_allOrNone = false;
+
+		contract.m_currency = "USD";
+		contract.m_exchange = "SMART";
+		contract.m_symbol = "GOOG";
+		contract.m_secType = "STK";
+
+		isPaused = false;
+		keepLooping = true;
+
+		while (keepLooping && prices.size() < 58500) {
+
+			long timeForSellLimits = 0;
+			long totalLoopTime = System.currentTimeMillis();
+			
+			while (isPaused) {
+				try {
+					Thread.sleep(39);
+				} catch (InterruptedException e) {
+					
+					e.printStackTrace();
+				}
+			}
+
+			long timeReq = System.currentTimeMillis();
+
+			// m_f.m_orderDlg.m_rc = true;
+
+			Double[] x = new Double[6];
+			currentPriceArray.add(x);
+			tickerId++;
+			m_f.m_client.reqMktData(tickerId, contract, "", true);
+
+			while (!newMarketDataReceived) {
+
+				try {
+					Thread.sleep(15);
+				} catch (InterruptedException e) {
+			
+					e.printStackTrace();
+				}
+			}
+
+			newMarketDataReceived = false;
+
+			currentPrice = prices.get(prices.size() - 1);
+			currentPriceBid = currentPriceArray
+					.get(currentPriceArray.size() - 1)[0];
+			currentPriceAsk = currentPriceArray
+					.get(currentPriceArray.size() - 1)[1];
+
+			ma = calculateMovingAverage(currentPriceArray.size() - 1,
+					movingAverageValues[0]);
+			
+			
+			//check to see if sell limit orders have been both received and if one has been executed
+			//if one has been executed, then buy = true;
+
+			if (buy && (currentPriceBid < (ma - buyPriceUnderLow[0]))
+					&& (currentPriceBid > (ma - buyPriceOver[0]))) {
+				buyOrder.m_orderId++;
+				try {
+
+					Contract contract = new Contract();
+					contract.m_currency = "USD";
+					contract.m_exchange = "SMART";
+					contract.m_symbol = "GOOG";
+					contract.m_secType = "STK";
+
+					buyOrder.m_orderId++;
+					m_f.m_client.placeOrder(buyOrder.m_orderId, contract,
+							buyOrder);
+				} catch (Exception e1) { //problem here
+					e1.printStackTrace();
+				}
+
+				while (!buyOrderCompleted) {
+					try {
+						Thread.sleep(15);
+//						buyOrderCompleted = true;
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				buyOrderCompleted = false;
+				
+				timeForSellLimits = System.currentTimeMillis();
+				this.mostRecentPurchasePrice = currentPriceBid;
+				Date date = new Date();
+				buy(currentPrice, 100, date);
+				// fc1.getSeries2().add(i,prices.get(i));
+				buy = false;
+				sell = true;
+				totalTradingCost += 1.0;
+				numberOfPurchases++;
+				
+				createLimitOrders();
+			}
+			
+			while(!bothSellOrdersCompleted ){
+				try {
+					
+					timeForSellLimits = System.currentTimeMillis() - totalLoopTime;
+					if(timeForSellLimits > 30000){
+						break;
+					}
+					Thread.sleep(15);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				
+			}
+			bothSellOrdersCompleted = false;
+			
+			
+			
+//			if (sell
+//					&& currentPriceAsk > (mostRecentPurchasePrice + sellPrice[0])) {
+//
+//				Date date = new Date();
+//				sell(currentPrice, 100, date, false);
+//				sell = false;
+//				buy = true;
+//				// fc1.getSeries3().add(i,prices.get(i));
+//				totalTradingCost += 1.0;
+//				numberOfProfitableSales++;
+//			}
+//			if (sell
+//					&& currentPriceAsk < (mostRecentPurchasePrice - stopLossPrice[0])) {
+//
+//				Date date = new Date();
+//				sell(currentPrice, 100, date, true);
+//				sell = false;
+//				buy = true;
+//				// fc1.getSeries3().add(i,prices.get(i));
+//				totalTradingCost += 1.0;
+//				numberOfStopLoss++;
+//			}
+
+			double totalCostTemp = totalTradingCost;
+			for (int i = 0; i < purchases.size(); i++) {
+				totalCostTemp += purchases.get(i).getPricePurchasedAt()
+						* purchases.get(i).getQuantityPurchased();
+			}
+
+			double totalRevenueTemp = 0;
+
+			for (int i = 0; i < sales.size(); i++) {
+				totalRevenueTemp += sales.get(i).getPriceSoldAt()
+						* sales.get(i).getQuantitySold();
+			}
+
+			Double profitTemp = totalRevenueTemp - totalCostTemp;
+
+			
+			System.out.println("Number of Purchases: " + numberOfPurchases);
+			System.out.println("Number of Profitable Sales: " + numberOfProfitableSales);
+			System.out.println("Number of Stop Loss Sales: " + numberOfStopLoss);
+			System.out.println("Buy Size: " + purchases.size());
+			System.out.println("Sell size: " + sales.size());
+			System.out.println("Total Revenue(Temp): " + totalRevenueTemp);
+			System.out.println("Total Cost(Temp): " + totalCostTemp);
+			System.out.println("Total Profit(Temp): " + profitTemp);
+
+			timeReq = System.currentTimeMillis() - timeReq;
+
+			try {
+				Thread.sleep(Math.max(0, 800 - timeReq / 1000));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
+		System.out.println("Final Number of Purchases: " + numberOfPurchases);
+		System.out.println("Final Number of Profitable Sales: "+ numberOfProfitableSales);
+		System.out.println("Final Number of Stop Loss Sales: " + numberOfStopLoss);
+
+		double totalRevenue = 0;
+		double totalCost = totalTradingCost;
+
+//		if (purchases.size() > sales.size()) {
+//			purchases.remove(purchases.size() - 1);
+//		}
+
+		for (int i = 0; i < purchases.size(); i++) {
+			totalCost += purchases.get(i).getPricePurchasedAt()
+					* purchases.get(i).getQuantityPurchased();
+		}
+
+		for (int i = 0; i < sales.size(); i++) {
+			totalRevenue += sales.get(i).getPriceSoldAt()
+					* sales.get(i).getQuantitySold();
+		}
+
+		Double profit = totalRevenue - totalCost;
+
+		System.out.println("Total Revenue: " + totalRevenue);
+		System.out.println("Total Cost: " + totalCost);
+		System.out.println("Total Profit: " + profit);
+	}
+
+	private void createLimitOrders() {
+		
+		
+		this.stopLossOrder = new Order();
+		
+		this.stopLossOrder.m_orderId = 2044;
+		this.stopLossOrder.m_clientId = 3;
+		this.stopLossOrder.m_orderType = "LMT";
+		this.stopLossOrder.m_totalQuantity = 100;
+		this.stopLossOrder.m_action = "SELL";
+		this.stopLossOrder.m_allOrNone = false;
+		this.stopLossOrder.m_lmtPrice = mostRecentPurchasePrice - stopLossPrice[0];
+		
+		m_f.m_client.placeOrder(stopLossOrder.m_orderId, contract,
+				stopLossOrder);
+		
+		this.sellOrder = new Order();
+		
+		this.sellOrder.m_orderId = 2044;
+		this.sellOrder.m_clientId = 3;
+		this.sellOrder.m_orderType = "LMT";
+		this.sellOrder.m_totalQuantity = 100;
+		this.sellOrder.m_action = "SELL";
+		this.sellOrder.m_allOrNone = false;
+		this.sellOrder.m_lmtPrice = mostRecentPurchasePrice + sellPrice[0];
+		
+		m_f.m_client.placeOrder(sellOrder.m_orderId, contract,
+				sellOrder);
+		
+		totalTradingCost += 2.0;
+	}
+
+	private Double returnMean(Vector<Double> diffValues) {
+
+		Integer total = diffValues.size();
+		Double sum = 0.0;
+
+		for (int i = 0; i < diffValues.size(); i++) {
+			sum += diffValues.get(i);
+		}
+		return sum / total;
+	}
+
+	public void buy(Double price, Integer quantity, Date date) {
+
+		purchases.add(new Purchase(this.purchaseId, price, quantity, date));
+		this.purchaseId++;
+	}
+
+	private void sell(Double price, Integer quantity, Date date,
+			boolean stopLoss) {
+
+		Purchase aPurchase = null;
+		Sale aSale = new Sale(this.saleId, price, quantity, date, stopLoss);
+		this.saleId++;
+		sales.add(aSale);
+		for (int i = 0; i < purchases.size(); i++) {
+			if (!purchases.get(i).isSold()) {
+				aPurchase = purchases.get(i);
+				aPurchase.setSold(true);
+			}
+		}
+	}
+
+	private static Double calculateMovingAverage(int position, int back) {
+
+		Integer i = null;
+		Integer total = 0;
+		Double sum = 0.0;
+
+		for (i = position; i > Math.max(position - back, 0); i--) {
+			sum += currentPriceArray.get(i - 1)[0];
+			total++;
+		}
+
+		return movingAverage = sum / total;
+
+	}
+
+	public static void testThisClass(){
+		
+		
+		int index = 0;
+		double sum = 0;
+		double i = 31.2;
+		
+			Double[] x = new Double[6];
+			x[0] = i;
+			currentPriceArray.add(x);
+			
+			
+		 i = 31.45;
+			
+		 x = new Double[6];
+			x[0] = i;
+			currentPriceArray.add(x);
+			
+			
+			 i = 31.95;
+				
+			 x = new Double[6];
+				x[0] = i;
+				currentPriceArray.add(x);
+				
+				
+				 i = 32.15;
+					
+				 x = new Double[6];
+					x[0] = i;
+					currentPriceArray.add(x);
+				
+			
+			for(index = 0; index < currentPriceArray.size(); index++){
+			System.out.println(currentPriceArray.get(index)[0].toString());
+					}
+			
+			
+		System.out.println(calculateMovingAverage(currentPriceArray.size()-1,1));
+	}
+
+	public Contract getContract() {
+		return contract;
+	}
+
+	public void setContract(Contract contract) {
+		this.contract = contract;
+	}
+
+	public int getTickerId() {
+		return tickerId;
+	}
+
+	public void setTickerId(int tickerId) {
+		this.tickerId = tickerId;
+	}
+
+	public int getPurchaseId() {
+		return purchaseId;
+	}
+
+	public void setPurchaseId(int purchaseId) {
+		this.purchaseId = purchaseId;
+	}
+
+	public int getSaleId() {
+		return saleId;
+	}
+
+	public void setSaleId(int saleId) {
+		this.saleId = saleId;
+	}
+
+	public boolean isBuy() {
+		return buy;
+	}
+
+	public void setBuy(boolean buy) {
+		this.buy = buy;
+	}
+
+	public boolean isSell() {
+		return sell;
+	}
+
+	public void setSell(boolean sell) {
+		this.sell = sell;
+	}
+
+	public Vector<Double> getPrices() {
+		return prices;
+	}
+
+	public void setPrices(Vector<Double> prices) {
+		this.prices = prices;
+	}
+
+	public Vector<String> getPricesString() {
+		return pricesString;
+	}
+
+	public void setPricesString(Vector<String> pricesString) {
+		this.pricesString = pricesString;
+	}
+
+	public Double getMostRecentPurchasePrice() {
+		return mostRecentPurchasePrice;
+	}
+
+	public void setMostRecentPurchasePrice(Double mostRecentPurchasePrice) {
+		this.mostRecentPurchasePrice = mostRecentPurchasePrice;
+	}
+
+	public Double getMovingAverage() {
+		return movingAverage;
+	}
+
+	public void setMovingAverage(Double movingAverage) {
+		this.movingAverage = movingAverage;
+	}
+
+	public Vector<Purchase> getPurchases() {
+		return purchases;
+	}
+
+	public void setPurchases(Vector<Purchase> purchases) {
+		this.purchases = purchases;
+	}
+
+	public Vector<Sale> getSales() {
+		return sales;
+	}
+
+	public void setSales(Vector<Sale> sales) {
+		this.sales = sales;
+	}
+
+	public Double getCurrentPrice() {
+		return currentPrice;
+	}
+
+	public void setCurrentPrice(Double currentPrice) {
+		this.currentPrice = currentPrice;
+	}
+
+	public FreeChart getFc1() {
+		return fc1;
+	}
+
+	public void setFc1(FreeChart fc1) {
+		this.fc1 = fc1;
+	}
+
+	public Double[] getSellPrice() {
+		return sellPrice;
+	}
+
+	public void setSellPrice(Double[] sellPrice) {
+		this.sellPrice = sellPrice;
+	}
+
+	public Double[] getBuyPriceUnderLow() {
+		return buyPriceUnderLow;
+	}
+
+	public void setBuyPriceUnderLow(Double[] buyPriceUnderLow) {
+		this.buyPriceUnderLow = buyPriceUnderLow;
+	}
+
+	public Double[] getBuyPriceUnderHigh() {
+		return buyPriceUnderHigh;
+	}
+
+	public void setBuyPriceUnderHigh(Double[] buyPriceUnderHigh) {
+		this.buyPriceUnderHigh = buyPriceUnderHigh;
+	}
+
+	public Double[] getBuyPriceOver() {
+		return buyPriceOver;
+	}
+
+	public void setBuyPriceOver(Double[] buyPriceOver) {
+		this.buyPriceOver = buyPriceOver;
+	}
+
+	public Double[] getStopLossPrice() {
+		return stopLossPrice;
+	}
+
+	public void setStopLossPrice(Double[] stopLossPrice) {
+		this.stopLossPrice = stopLossPrice;
+	}
+
+	public Integer[] getMovingAverageValues() {
+		return movingAverageValues;
+	}
+
+	public void setMovingAverageValues(Integer[] movingAverageValues) {
+		this.movingAverageValues = movingAverageValues;
+	}
+
+	public MainFrame getM_f() {
+		return m_f;
+	}
+
+	public void setM_f(MainFrame m_f) {
+		this.m_f = m_f;
+	}
+
+	public void printSomeShit(double price) {
+		System.out.println("PRCE N SHIT" + price);
+
+	}
+
+	public Vector<Double[]> getCurrentPriceArray() {
+		return currentPriceArray;
+	}
+
+	public void setCurrentPriceArray(Vector<Double[]> currentPriceArray) {
+		this.currentPriceArray = currentPriceArray;
+	}
+
+	public boolean isBuyOrderCompleted() {
+		return buyOrderCompleted;
+	}
+
+	public void setBuyOrderCompleted(boolean buyOrderCompleted) {
+		this.buyOrderCompleted = buyOrderCompleted;
+	}
+}
