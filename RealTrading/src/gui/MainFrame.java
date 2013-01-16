@@ -21,6 +21,7 @@ import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Date;
+import java.util.Vector;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -59,7 +60,7 @@ public class MainFrame extends JFrame implements EWrapper {
 	private MainPanel mainPanel = null;
 	String m_retIpAddress = "";
 	int m_retPort = 7496;
-	int m_retClientId = 3;
+	int m_retClientId = 15;
 	boolean m_rc;
 	private TradingEngine te = null;
 //	private TradingEngine te = null;
@@ -69,6 +70,8 @@ public class MainFrame extends JFrame implements EWrapper {
 	public String m_genericTicks = "X";
 	public int m_id = 0;
 	public boolean isPaused = false;
+	public ErrorTextAreaFrame etaf = null;
+	public Vector<Integer> intVector = new Vector<Integer>();
 	
 	//public WriteToTextFile wttf = new WriteToTextFile();
 	
@@ -121,40 +124,6 @@ public class MainFrame extends JFrame implements EWrapper {
 			
 		});
 		
-//		closeOutButton.addActionListener(new ActionListener(){
-//
-//			@Override
-//			public void actionPerformed(ActionEvent e) {
-//				onCloseOut();
-//				
-//			}
-//
-//			private void onCloseOut() {
-//				
-//				System.out.println("Close out position(s)...");
-//				te_new.keepLooping = false;
-//			}
-//			
-//		});
-//		
-//		pauseButton.addActionListener(new ActionListener() {
-//
-//			@Override
-//			public void actionPerformed(ActionEvent arg0) {
-//
-//				if (isPaused == false) {
-//					isPaused = true;
-//					pauseButton.setForeground(Color.red);
-//					pauseButton.setText("Resume");
-//				} else {
-//					isPaused = false;
-//					pauseButton.setForeground(Color.black);
-//					pauseButton.setText("Pause");
-//				}
-//
-//			}
-//
-//		});
 		
 		m_contract = new Contract();
 		this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -303,9 +272,73 @@ public class MainFrame extends JFrame implements EWrapper {
         		+ " remaining: " + remaining + " average fill price: " + avgFillPrice
         		+ " permId: " + permId + " parentId: " + parentId);
 		
-		if(filled > 0 && remaining == 0){
+		
+		
+		if(orderId == te_new.getBuyOrder().m_orderId && !intVector.contains(te_new.getBuyOrder().m_orderId)){
+			
+			
+			if(filled > 0 && remaining == 0){
+			intVector.add(te_new.getBuyOrder().m_orderId);
 			te_new.setBuyOrderCompleted(true);
+			
+			te_new.mostRecentPurchasePrice = avgFillPrice;
+			Date date = new Date();
+			te_new.buy(avgFillPrice, 100, date);
+			// fc1.getSeries2().add(i,prices.get(i));
+		
+			te_new.totalTradingCost += 1.0;
+			te_new.numberOfPurchases++;
 			}
+			
+			
+		}
+		else if(orderId == te_new.getSellOrder().m_orderId && !intVector.contains(te_new.getSellOrder().m_orderId)){
+			
+			if(filled > 0 && remaining == 0){
+				
+				intVector.add(te_new.getStopLossOrder().m_orderId);
+				m_client.cancelOrder(te_new.getStopLossOrder().m_orderId);
+				te_new.setBuy(true);
+				te_new.numberOfProfitableSales++;
+				Date date = new Date();
+				te_new.sell(avgFillPrice, 100, date, true);
+				// fc1.getSeries3().add(i,prices.get(i));
+				te_new.totalTradingCost += 1.0;
+				
+			}
+			else{
+				te_new.submitSellOrderCompleted = true;
+				if(te_new.submitStopLossOrderCompleted = true){
+					te_new.bothSellOrdersCompleted = true;
+				}
+			}
+		}
+		else if(orderId == te_new.getStopLossOrder().m_orderId && !intVector.contains(te_new.getStopLossOrder().m_orderId)){
+			
+			if(filled > 0 && remaining == 0){
+				
+				intVector.add(te_new.getStopLossOrder().m_orderId);
+				m_client.cancelOrder(te_new.getSellOrder().m_orderId);
+				te_new.setBuy(true);
+				te_new.numberOfStopLoss++;
+				Date date = new Date();
+				te_new.sell(avgFillPrice, 100, date, false);
+				// fc1.getSeries3().add(i,prices.get(i));
+				te_new.totalTradingCost += 1.0;
+				
+			}
+			else{
+				te_new.submitStopLossOrderCompleted = true;
+				if(te_new.submitSellOrderCompleted == true){
+					te_new.bothSellOrdersCompleted = true;
+				}
+				
+			}
+		}
+		else{
+		}
+	
+			
 	}
 
 	@Override
@@ -473,16 +506,34 @@ public class MainFrame extends JFrame implements EWrapper {
 	@Override
 	public void error(Exception e) {
 
+		if(etaf == null){
+			etaf = new ErrorTextAreaFrame();
+		}
+		etaf.writeToErrorLog(e.toString() + "...." + e.getMessage());
+		System.out.println("Error: " + e.toString() + "...." + e.getMessage());
+		
 	}
 
 	@Override
 	public void error(String str) {
 
+		if(etaf == null){
+			etaf = new ErrorTextAreaFrame();
+		}
+		etaf.writeToErrorLog(str);
+		System.out.println("Error: " + str);
+		
 	}
 
 	@Override
 	public void error(int id, int errorCode, String errorMsg) {
 
+		if(etaf == null){
+			etaf = new ErrorTextAreaFrame();
+		}
+		etaf.writeToErrorLog(errorMsg);
+		System.out.println("Error: " + errorMsg);
+		
 	}
 
 	@Override

@@ -38,12 +38,12 @@ public class NewTradingEngine {
 	public Double currentPriceAsk = null;
 	public static Vector<Double[]> currentPriceArray = new Vector<Double[]>();
 	public FreeChart fc1 = null;
-	public Double[] sellPrice = { .03 };
-	public Double[] buyPriceUnderLow = { -.02 };
+	public Double[] sellPrice = { .04 };
+	public Double[] buyPriceUnderLow = { -.01 };
 	public Double[] buyPriceUnderHigh = { .02 };
 	public Double[] buyPriceOver = { .9 };
-	public Double[] stopLossPrice = { .03 };
-	public Integer[] movingAverageValues = { 450 };
+	public Double[] stopLossPrice = { .07 };
+	public Integer[] movingAverageValues = { 105 };
 	private MainFrame m_f = null;
 	public boolean keepLooping = true;
 	public boolean isPaused = true;
@@ -52,26 +52,29 @@ public class NewTradingEngine {
 	public boolean newMarketDataReceived = false;
 	private Double ma = null;
 //	private Double totalCost = 0.0;
-	private Double totalTradingCost = 0.0;
-	private int numberOfPurchases = 0;
+	public Double totalTradingCost = 0.0;
+	public int numberOfPurchases = 0;
 	public Integer numberOfStopLoss = 0;
 	public Integer numberOfProfitableSales = 0;
 	public Order buyOrder = new Order();
 	public Order sellOrder = new Order();
 	public Order stopLossOrder = new Order();
+	public boolean bothSellOrdersCompleted = false;
+	private int currentOrderId = 1;
+	public boolean submitStopLossOrderCompleted = false;
+	public boolean submitSellOrderCompleted = false;
 	public boolean buyOrderCompleted = false;
-	private boolean bothSellOrdersCompleted = false;
 
 	public NewTradingEngine(MainFrame mainFrame) {
 
 		this.m_f = mainFrame;
 		contract = new Contract();
 		
-		buyOrder.m_orderId = 1;
-		sellOrder.m_orderId = 1;
-		stopLossOrder.m_orderId = 1;
-
-		// startThisSucker();
+		contract.m_currency = "USD";
+		contract.m_exchange = "SMART";
+		contract.m_symbol = "GOOG";
+		contract.m_secType = "STK";
+		
 		closeOutButton.addActionListener(new ActionListener() {
 
 			@Override
@@ -122,29 +125,16 @@ public class NewTradingEngine {
 
 	}
 
-	// public static void main(String[] args){
-	// new NewTradingEngine();
-	// }
 
 	public void startThisSucker() {
-
-		buyOrder.m_orderId = 2044;
-		buyOrder.m_clientId = 3;
-		buyOrder.m_orderType = "MKT";
-		buyOrder.m_totalQuantity = 100;
-		buyOrder.m_action = "BUY";
-		buyOrder.m_allOrNone = false;
-
-		contract.m_currency = "USD";
-		contract.m_exchange = "SMART";
-		contract.m_symbol = "GOOG";
-		contract.m_secType = "STK";
 
 		isPaused = false;
 		keepLooping = true;
 
 		while (keepLooping && prices.size() < 58500) {
 
+			
+			long timeReq = System.currentTimeMillis();
 			long timeForSellLimits = 0;
 			long totalLoopTime = System.currentTimeMillis();
 			
@@ -157,7 +147,7 @@ public class NewTradingEngine {
 				}
 			}
 
-			long timeReq = System.currentTimeMillis();
+			
 
 			// m_f.m_orderDlg.m_rc = true;
 
@@ -166,9 +156,19 @@ public class NewTradingEngine {
 			tickerId++;
 			m_f.m_client.reqMktData(tickerId, contract, "", true);
 
+			
+			boolean waitformarketdata = true;
 			while (!newMarketDataReceived) {
 
 				try {
+					
+					if(waitformarketdata  == true){
+						System.out.println("");
+						System.out.println("Waiting to get back market data response...");
+						System.out.println("");
+					}
+					waitformarketdata = false;
+					
 					Thread.sleep(15);
 				} catch (InterruptedException e) {
 			
@@ -193,26 +193,42 @@ public class NewTradingEngine {
 
 			if (buy && (currentPriceBid < (ma - buyPriceUnderLow[0]))
 					&& (currentPriceBid > (ma - buyPriceOver[0]))) {
-				buyOrder.m_orderId++;
+				
+				currentOrderId++;
+				buy = false;
+				
+				buyOrder = new Order();
+				buyOrder.m_orderId = currentOrderId;
+				buyOrder.m_clientId = 14;
+				buyOrder.m_orderType = "MKT";
+				buyOrder.m_totalQuantity = 100;
+				buyOrder.m_action = "BUY";
+				buyOrder.m_allOrNone = false;
+				
+				
 				try {
 
-					Contract contract = new Contract();
-					contract.m_currency = "USD";
-					contract.m_exchange = "SMART";
-					contract.m_symbol = "GOOG";
-					contract.m_secType = "STK";
-
-					buyOrder.m_orderId++;
 					m_f.m_client.placeOrder(buyOrder.m_orderId, contract,
 							buyOrder);
+					
+					System.out.println("Buy order submitted with id = " + this.buyOrder.m_orderId + ".");
+					
 				} catch (Exception e1) { //problem here
 					e1.printStackTrace();
 				}
 
+				boolean waitforbuy = true;
 				while (!buyOrderCompleted) {
 					try {
 						Thread.sleep(15);
-//						buyOrderCompleted = true;
+						
+						if(waitforbuy){
+							System.out.println("");
+							System.out.println("Waiting to get back buy order response...");
+							System.out.println("");
+						}
+						waitforbuy = false;
+
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
@@ -220,23 +236,22 @@ public class NewTradingEngine {
 				buyOrderCompleted = false;
 				
 				timeForSellLimits = System.currentTimeMillis();
-				this.mostRecentPurchasePrice = currentPriceBid;
-				Date date = new Date();
-				buy(currentPrice, 100, date);
-				// fc1.getSeries2().add(i,prices.get(i));
-				buy = false;
-				sell = true;
-				totalTradingCost += 1.0;
-				numberOfPurchases++;
 				
 				createLimitOrders();
-			}
 			
+			
+				boolean waitforsell = true;
 			while(!bothSellOrdersCompleted ){
 				try {
 					
+					if(waitforsell){
+						System.out.println("");
+						System.out.println("Waiting to get back sell orders response...");
+						System.out.println("");
+					}
+					waitforsell = false;
 					timeForSellLimits = System.currentTimeMillis() - totalLoopTime;
-					if(timeForSellLimits > 30000){
+					if(timeForSellLimits > 15000){
 						break;
 					}
 					Thread.sleep(15);
@@ -247,30 +262,8 @@ public class NewTradingEngine {
 			}
 			bothSellOrdersCompleted = false;
 			
+			}
 			
-			
-//			if (sell
-//					&& currentPriceAsk > (mostRecentPurchasePrice + sellPrice[0])) {
-//
-//				Date date = new Date();
-//				sell(currentPrice, 100, date, false);
-//				sell = false;
-//				buy = true;
-//				// fc1.getSeries3().add(i,prices.get(i));
-//				totalTradingCost += 1.0;
-//				numberOfProfitableSales++;
-//			}
-//			if (sell
-//					&& currentPriceAsk < (mostRecentPurchasePrice - stopLossPrice[0])) {
-//
-//				Date date = new Date();
-//				sell(currentPrice, 100, date, true);
-//				sell = false;
-//				buy = true;
-//				// fc1.getSeries3().add(i,prices.get(i));
-//				totalTradingCost += 1.0;
-//				numberOfStopLoss++;
-//			}
 
 			double totalCostTemp = totalTradingCost;
 			for (int i = 0; i < purchases.size(); i++) {
@@ -300,7 +293,7 @@ public class NewTradingEngine {
 			timeReq = System.currentTimeMillis() - timeReq;
 
 			try {
-				Thread.sleep(Math.max(0, 800 - timeReq / 1000));
+				Thread.sleep(Math.max(0, 10000 - timeReq));
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -337,10 +330,12 @@ public class NewTradingEngine {
 	private void createLimitOrders() {
 		
 		
+		currentOrderId++;
+		
 		this.stopLossOrder = new Order();
 		
-		this.stopLossOrder.m_orderId = 2044;
-		this.stopLossOrder.m_clientId = 3;
+		this.stopLossOrder.m_orderId = currentOrderId;
+		this.stopLossOrder.m_clientId = 14;
 		this.stopLossOrder.m_orderType = "LMT";
 		this.stopLossOrder.m_totalQuantity = 100;
 		this.stopLossOrder.m_action = "SELL";
@@ -350,10 +345,15 @@ public class NewTradingEngine {
 		m_f.m_client.placeOrder(stopLossOrder.m_orderId, contract,
 				stopLossOrder);
 		
+		System.out.println("Stop loss order placed with id = " + this.stopLossOrder.m_orderId + ".");
+		
+		
+		currentOrderId++;
+		
 		this.sellOrder = new Order();
 		
-		this.sellOrder.m_orderId = 2044;
-		this.sellOrder.m_clientId = 3;
+		this.sellOrder.m_orderId = currentOrderId;
+		this.sellOrder.m_clientId = 14;
 		this.sellOrder.m_orderType = "LMT";
 		this.sellOrder.m_totalQuantity = 100;
 		this.sellOrder.m_action = "SELL";
@@ -362,6 +362,8 @@ public class NewTradingEngine {
 		
 		m_f.m_client.placeOrder(sellOrder.m_orderId, contract,
 				sellOrder);
+		
+		System.out.println("Sell order placed with id = " + this.sellOrder.m_orderId + ".");
 		
 		totalTradingCost += 2.0;
 	}
@@ -383,7 +385,7 @@ public class NewTradingEngine {
 		this.purchaseId++;
 	}
 
-	private void sell(Double price, Integer quantity, Date date,
+	public void sell(Double price, Integer quantity, Date date,
 			boolean stopLoss) {
 
 		Purchase aPurchase = null;
@@ -642,4 +644,53 @@ public class NewTradingEngine {
 	public void setBuyOrderCompleted(boolean buyOrderCompleted) {
 		this.buyOrderCompleted = buyOrderCompleted;
 	}
+	
+	public boolean isKeepLooping() {
+		return keepLooping;
+	}
+
+	public void setKeepLooping(boolean keepLooping) {
+		this.keepLooping = keepLooping;
+	}
+
+	public Double getTotalTradingCost() {
+		return totalTradingCost;
+	}
+
+	public void setTotalTradingCost(Double totalTradingCost) {
+		this.totalTradingCost = totalTradingCost;
+	}
+
+	public int getCurrentOrderId() {
+		return currentOrderId;
+	}
+
+	public void setCurrentOrderId(int currentOrderId) {
+		this.currentOrderId = currentOrderId;
+	}
+	
+	public Order getBuyOrder() {
+		return buyOrder;
+	}
+
+	public void setBuyOrder(Order buyOrder) {
+		this.buyOrder = buyOrder;
+	}
+
+	public Order getSellOrder() {
+		return sellOrder;
+	}
+
+	public void setSellOrder(Order sellOrder) {
+		this.sellOrder = sellOrder;
+	}
+
+	public Order getStopLossOrder() {
+		return stopLossOrder;
+	}
+
+	public void setStopLossOrder(Order stopLossOrder) {
+		this.stopLossOrder = stopLossOrder;
+	}
+
 }
